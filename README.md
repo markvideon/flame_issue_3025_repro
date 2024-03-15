@@ -1,6 +1,6 @@
 # flame_issue_3025_repro
 
-A new Flutter project.
+Very simple example 
 
 ## Getting Started
 

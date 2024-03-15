@@ -7,65 +7,17 @@ import 'package:flame_riverpod/flame_riverpod.dart';
 import 'package:flutter/material.dart' hide Route;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final countingStreamProvider = StreamProvider<int>((ref) {
-  return Stream.periodic(const Duration(seconds: 1), (inc) => inc);
-});
+enum GameRoute {
+  home,
+  play;
 
-void main() {
-  runApp(const ProviderScope(child: MyApp()));
-}
-
-final gameInstance = RefExampleGame();
-final GlobalKey<RiverpodAwareGameWidgetState> gameWidgetKey =
-GlobalKey<RiverpodAwareGameWidgetState>();
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      home: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Expanded(child: FlutterCountingComponent()),
-          Expanded(
-            child: RiverpodAwareGameWidget(
-              key: gameWidgetKey,
-              game: gameInstance,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class FlutterCountingComponent extends ConsumerWidget {
-  const FlutterCountingComponent({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final textStyle = Theme.of(context)
-        .textTheme
-        .headlineSmall
-        ?.copyWith(color: Colors.white);
-
-    final stream = ref.watch(countingStreamProvider);
-    return Material(
-      color: Colors.transparent,
-      child: Column(
-        children: [
-          Text('Flutter', style: textStyle),
-          stream.when(
-            data: (value) => Text('$value', style: textStyle),
-            error: (error, stackTrace) => Text('$error', style: textStyle),
-            loading: () => Text('Loading...', style: textStyle),
-          ),
-        ],
-      ),
-    );
+  Route get route {
+    switch (this) {
+      case GameRoute.home:
+        return Route(HomePage.new, maintainState: true);
+      case GameRoute.play:
+        return Route(PlayPage.new, maintainState: true);
+    }
   }
 }
 
@@ -74,41 +26,36 @@ class RefExampleGame extends FlameGame with RiverpodGameMixin {
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    add(ButtonComponent(
-      onPressed: () {
-        print('push home');
-        _router.pushReplacementNamed('home');
-      },
-      button: RectangleComponent(
-        size: Vector2(100,100),
-        paint: Paint()..color = Colors.red,
-        children: [
-          TextComponent(text: 'home')
-        ]
-      ),
-    ));
-    add(ButtonComponent(
-      position: Vector2(100,0),
-      onPressed: () {
-        print('push play');
-        _router.pushReplacementNamed('play');
-      },
-      button: RectangleComponent(
-        size: Vector2(100,100),
-        paint: Paint()..color = Colors.red,
-        children: [
-          TextComponent(text: 'play')
-        ]
-      ),
-    ));
+
+    add(RiverpodAwareTextComponent()..position = Vector2(0, 100));
+
+    final buttonSize = 0.3 * size.x;
+
+    for (final route in GameRoute.values) {
+      final idx = GameRoute.values.indexOf(route);
+
+      add(ButtonComponent(
+        position: Vector2(idx * (buttonSize + 20), 0),
+        onPressed: () {
+          _router.pushReplacementNamed(route.name);
+        },
+        button: RectangleComponent(
+            size: Vector2(buttonSize, 100),
+            paint: Paint()..color = Colors.red,
+            children: [
+              TextComponent(
+                text: 'Nav to: ${route.name}')
+            ]
+        ),
+      ));
+    }
 
     world.add(
       _router = RouterComponent(
-        routes: {
-          'home': Route(HomePage.new, maintainState: true),
-          'play': Route(PlayPage.new, maintainState: true),
-        },
-        initialRoute: 'home',
+        routes: Map.fromEntries(GameRoute.values.map((e) {
+          return MapEntry(e.name, e.route);
+        })),
+        initialRoute: GameRoute.values.first.name,
       ),
     );
   }
@@ -121,6 +68,34 @@ class HomePage extends Component
 class PlayPage extends Component
     with HasGameReference<RefExampleGame>, RiverpodComponentMixin {
 }
+
+// Misc boilerplate from example past this point
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Demo',
+      home: RiverpodAwareGameWidget(
+        key: gameWidgetKey,
+        game: gameInstance,
+      ),
+    );
+  }
+}
+
+final countingStreamProvider = StreamProvider<int>((ref) {
+  return Stream.periodic(const Duration(seconds: 1), (inc) => inc);
+});
+
+void main() {
+  runApp(const ProviderScope(child: MyApp()));
+}
+
+final gameInstance = RefExampleGame();
+final GlobalKey<RiverpodAwareGameWidgetState> gameWidgetKey =
+GlobalKey<RiverpodAwareGameWidgetState>();
 
 class RiverpodAwareTextComponent extends PositionComponent
     with RiverpodComponentMixin {
